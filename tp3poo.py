@@ -189,6 +189,8 @@ class simple_attack(attack):
         self._range = 2
     def skill_info(self):
         return super().skill_info()
+    def effect(self, user, target):
+        return super().effect(user, target)
 
 class physical_attack(attack):
     def __init__(self, name):
@@ -202,6 +204,7 @@ class physical_attack(attack):
     
     def effect(self, user, target):
         user.stamina-=self._stamina_cost
+        super().effect(user, target)
         return super().effect(user, target)
 
 class punch(physical_attack):
@@ -214,6 +217,7 @@ class punch(physical_attack):
     def skill_info(self):
         return super().skill_info()
     def effect(self, user, target):
+        super().effect(user, target)
         return super().effect(user, target)
 
 class kick(physical_attack):
@@ -710,72 +714,97 @@ class Application:
                         confirm_button.grid(row=row+3, column=0, pady=5, padx=5, sticky="ew")
 
                         cancel_button = tk.Button(self.root, text="Cancel", command=self.cancel_selection)
-                        cancel_button.grid(row=row+3, column=1, pady=5, padx=5, sticky="ew")
+                        cancel_button.grid(row=row+3, column=2, pady=5, padx=5, sticky="ew")
 
                         # Update the flag to indicate buttons are added
                         self.button_clicked = True
                     
                     break
-    def confirm_selection(self):
+
+
+    def get_class_name_from_info(self, info):
+        # Check if the provided info is not empty
+        if info:
+            # Split the info by newline character to get individual lines
+            lines = info.split('\n')
+            # Check each line to find the line containing the class name
+            for line in lines:
+                # Check if the line contains the class name (e.g., by checking if it starts with "Class:")
+                if line.startswith("Name:"):
+                    # Split the line by colon (:) and return the second part (class name)
+                    print (line.split(":")[1].strip())
+                    return line.split(":")[1].strip()
+        return None
+    def apply_selected_skill(self):
         # Get user, skill, and target info from text boxes
         user_info = self.textbox_left.get(1.0, tk.END).strip()
         skill_info = self.textbox_middle.get(1.0, tk.END).strip()
         target_info = self.textbox_right.get(1.0, tk.END).strip()
 
         # Find user warrior
-        user_warrior = None
-        for team in self.game_instance.game_teams:
-            for player in team.team_members:
-                if player.name in user_info:
-                    user_warrior = player
-                    break
-            if user_warrior:
-                break
+        user_warrior = self.find_warrior_by_name(self.get_class_name_from_info(user_info))
+        if user_warrior is None:
+            self.display_error_message("User warrior not found")
+            return
 
         # Find target warrior
-        target_warrior = None
-        for team in self.game_instance.game_teams:
-            for player in team.team_members:
-                if player.name in target_info:
-                    target_warrior = player
-                    break
-            if target_warrior:
-                break
+        target_warrior = self.find_warrior_by_name(self.get_class_name_from_info(target_info))
+        if target_warrior is None:
+            self.display_error_message("Target warrior not found")
+            return
 
         # Find skill
-        skill_name = skill_info.split(":")[1].strip()
-        skill = None
-        for warrior_skill in user_warrior.skills:
-            if skill_name == warrior_skill.name:
-                skill = warrior_skill
-                break
+        skill = self.find_skill_by_name(user_warrior, self.get_class_name_from_info(skill_info))
+        print (skill.name)
+        if skill is None:
+            self.display_error_message("Skill not found for user warrior")
+            return
 
-        # Apply skill effect if everything is found
-        if user_warrior and skill and target_warrior:
-            skill_effect = skill.effect(user_warrior, target_warrior)
-            # Update user and target stats
-            self.update_stats(user_warrior)
-            self.update_stats(target_warrior)
-            # Clear all text boxes and remove buttons
-            self.clear_all()
-            # Update text boxes with updated stats and skill effect
-            
+        print ("simple ttest")
 
-    def update_stats(self, warrior):
-    # Get the index of the warrior's stats in the GUI based on their name
-        warrior_name = warrior.name
-        index = None
-        for i, team_member in enumerate(self.game_instance.game_teams[0].team_members):
-            if team_member.name == warrior_name:
-                index = i
-                break
+        # Apply skill effect
+        skill.effect(user_warrior, target_warrior)
 
-        # If the warrior is found, return their updated stats
-        if index is not None:
-            return warrior.stats_info()  # Return the updated stats information
-        else:
-            return []  # Return an empty list if the warrior is not foundz
+        print ("skill effect done")
+
+        self.clear_all()
+
+        print("cleared")
         
+        self.display_player_info(user_warrior)
+
+        self.show_skill_info(skill)
+
+        self.display_player_info_right(target_warrior)
+
+        
+
+    def find_warrior_by_name(self, warrior_name):
+        for team in self.game_instance.game_teams:
+            for player in team.team_members:
+                if player.name == warrior_name:
+                    return player
+        return None
+    
+
+    def find_skill_by_name(self, warrior, skill_name):
+        print("Searching for skill:", skill_name)
+        for warrior_skill in warrior.skills:
+            print("Checking skill:", warrior_skill.name)
+            if warrior_skill.name == skill_name:
+                print("Found skill:", skill_name)
+                return warrior_skill
+        print("Skill not found:", skill_name)
+        return None
+
+    def display_error_message(self, message):
+        # Display error message to the user (e.g., using a messagebox)
+        print( message)
+
+    def confirm_selection(self):
+        self.apply_selected_skill()
+
+
     def cancel_selection(self):
         # Call the clear_all method to clear text boxes and remove buttons
         self.clear_all()
